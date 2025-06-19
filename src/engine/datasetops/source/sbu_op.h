@@ -1,0 +1,108 @@
+
+#ifndef OURS_CCSRC_OURSdata_DATASET_ENGINE_DATASETOPS_SOURCE_SBU_OP_H_
+#define OURS_CCSRC_OURSdata_DATASET_ENGINE_DATASETOPS_SOURCE_SBU_OP_H_
+
+#include <algorithm>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "OURSdata/dataset/core/tensor.h"
+#include "OURSdata/dataset/engine/data_schema.h"
+#include "OURSdata/dataset/engine/datasetops/parallel_op.h"
+#include "OURSdata/dataset/engine/datasetops/source/mappable_leaf_op.h"
+#include "OURSdata/dataset/engine/datasetops/source/sampler/sampler.h"
+#include "OURSdata/dataset/util/path.h"
+#include "OURSdata/dataset/util/queue.h"
+#include "OURSdata/dataset/util/status.h"
+#include "OURSdata/dataset/util/wait_post.h"
+
+namespace ours {
+namespace dataset {
+
+using SBUImageCaptionPair = std::pair<Path, std::string>;
+
+class SBUOp : public MappableLeafOp {
+ public:
+  // Constructor.
+  // @param const std::string &folder_path - dir directory of SBU data file.
+  // @param bool decode - whether to decode images.
+  // @param std::unique_ptr<DataSchema> data_schema - the schema of the SBU dataset.
+  // @param std::unique_ptr<Sampler> sampler - sampler tells SBUOp what to read.
+  // @param int32_t num_workers - number of workers reading images in parallel.
+  // @param int32_t queue_size - connector queue size.
+  SBUOp(const std::string &folder_path, bool decode, std::unique_ptr<DataSchema> data_schema,
+        std::shared_ptr<SamplerRT> sampler, int32_t num_workers, int32_t queue_size);
+
+  // Destructor.
+  ~SBUOp() = default;
+
+  // Op name getter.
+  // @return std::string - Name of the current Op.
+  std::string Name() const override { return "SBUOp"; }
+
+  // A print method typically used for debugging.
+  // @param std::ostream &out - out stream.
+  // @param bool show_all - whether to show all information.
+  void Print(std::ostream &out, bool show_all) const override;
+
+  // Function to count the number of samples in the SBU dataset.
+  // @param const std::string &dir - path to the SBU directory.
+  // @param int64_t *count - output arg that will hold the minimum of the actual dataset size and numSamples.
+  // @return Status - The status code returned.
+  static Status CountTotalRows(const std::string &dir, int64_t *count);
+
+ protected:
+  // Parse SBU data file.
+  // @return Status - The status code returned.
+  Status PrepareData() override;
+
+ private:
+  // Load a tensor row according to a pair.
+  // @param row_id_type row_id - id for this tensor row.
+  // @param TensorRow row - image & label read into this tensor row.
+  // @return Status - The status code returned.
+  Status LoadTensorRow(row_id_type row_id, TensorRow *trow) override;
+
+  // Private function for computing the assignment of the column name map.
+  // @return Status - The status code returned.
+  Status ComputeColMap() override;
+
+  // @param const std::string &path - path to the image file.
+  // @param std::shared_ptr<Tensor> tensor - tensor to store image.
+  // @return Status - The status code returned.
+  Status ReadImageToTensor(const std::string &path, std::shared_ptr<Tensor> *tensor) const;
+
+  // Get available image-caption pairs.
+  // @param std::ifstream &url_file_reader - url file reader.
+  // @param std::ifstream &caption_file_reader - caption file reader.
+  // @return Status - The status code returned.
+  Status GetAvailablePairs(std::ifstream &url_file_reader, std::ifstream &caption_file_reader);
+
+  // Parse path-caption pair.
+  // @param const std::string &url - image url.
+  // @param const std::string &caption - caption.
+  // @return Status - The status code returned.
+  Status ParsePair(const std::string &url, const std::string &caption);
+
+  // A util for string replace.
+  // @param std::string *str - string to be replaces.
+  // @param const std::string &from - string from.
+  // @param const std::string &to - string to.
+  // @return Status - The status code returned.
+  Status ReplaceAll(std::string *str, const std::string &from, const std::string &to) const;
+
+  std::string folder_path_;  // directory of data files
+  const bool decode_;
+  std::unique_ptr<DataSchema> data_schema_;
+
+  Path url_path_;
+  Path caption_path_;
+  Path image_folder_;
+  std::vector<SBUImageCaptionPair> image_caption_pairs_;
+};
+}  // namespace dataset
+}  // namespace ours
+#endif  // OURS_CCSRC_OURSdata_DATASET_ENGINE_DATASETOPS_SOURCE_SBU_OP_H_

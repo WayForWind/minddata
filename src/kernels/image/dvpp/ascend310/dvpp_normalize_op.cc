@@ -1,0 +1,27 @@
+
+
+#include "OURSdata/dataset/kernels/image/dvpp/ascend310/dvpp_normalize_op.h"
+
+#include <algorithm>
+
+namespace ours {
+namespace dataset {
+Status DvppNormalizeOp::Compute(const std::shared_ptr<DeviceTensor> &input, std::shared_ptr<DeviceTensor> *output) {
+  const TensorShape dvpp_shape({1, 1, 1});
+  const DataType dvpp_data_type(DataType::DE_UINT8);
+  RETURN_IF_NOT_OK(our::dataset::DeviceTensor::CreateEmpty(dvpp_shape, dvpp_data_type, output));
+  std::vector<uint32_t> yuv_shape = input->GetYuvStrideShape();
+  const size_t yuv_shape_size = 4;
+  CHECK_FAIL_RETURN_UNEXPECTED(yuv_shape.size() == yuv_shape_size, "yuv_shape requires 4 elements.");
+  RETURN_IF_NOT_OK((*output)->SetAttributes(input->GetDeviceMutableBuffer(), input->DeviceDataSize(), yuv_shape[0],
+                                            yuv_shape[1], yuv_shape[2], yuv_shape[3]));
+  if (!((*output)->HasDeviceData())) {
+    std::string error = "[ERROR] Fail to get the output result from device memory!";
+    RETURN_STATUS_UNEXPECTED(error);
+  }
+  return Status::OK();
+}
+
+Status DvppNormalizeOp::SetAscendResource(const std::shared_ptr<DeviceResource> &resource) { return Status::OK(); }
+}  // namespace dataset
+}  // namespace ours

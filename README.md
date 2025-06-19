@@ -1,5 +1,3 @@
-# minddata
-
 # Code Structure Overview
 
 This repository demonstrates the core data processing pipeline and the implementation of various operators, divided into Python and C++ layers.
